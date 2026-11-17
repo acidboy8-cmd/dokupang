@@ -279,7 +279,8 @@ body.sk-jelly .blk::after,.prev.sk-jelly .blk::after{content:none}
 <script>
 (()=>{
 /* ===== 랭킹 설정: Vercel에 올릴 때 Supabase 주소/anon 키를 넣으면 그쪽으로 저장돼요 ===== */
-const SUPA={url:'여기에_Supabase_Project_URL',key:'여기에_anon_public_key'};
+const supaHdr=()=>SUPA.key.startsWith('eyJ')?{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key}:{apikey:SUPA.key};
+const SUPA={url:'https://wabpkvsgzxuktwqitdfn.supabase.co',key:'sb_publishable_PnvqHR7k0M7ZtoUTo3WIgA_0g_Qoc3X'};
 
 const N=9;
 const $=s=>document.querySelector(s);
@@ -661,9 +662,9 @@ async function submitScore(kind,name,sc){
   const row=kind==='day'?{date:d,name,score:sc,device:devId}:{name,score:sc,device:devId};
   if(SUPA.url){
     const r=await withTimeout(fetch(SUPA.url+'/rest/v1/'+TBL[kind],{method:'POST',
-      headers:{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json',Prefer:'return=minimal'},
+      headers:{...supaHdr(),'Content-Type':'application/json',Prefer:'return=minimal'},
       body:JSON.stringify(row)}),10000);
-    if(!r.ok)throw new Error('http');return}
+    if(!r.ok){let t='';try{t=(await r.text()).slice(0,140)}catch(_){}throw new Error('HTTP '+r.status+' '+t)}return}
   const db=await getDb();if(!db)throw new Error('nodb');
   const ref=kind==='day'?db.collection('daily').doc(d+'_'+devId):db.collection('chal').doc(devId);
   await withTimeout(ref.set(Object.assign({at:Date.now()},row)),10000);
@@ -673,7 +674,7 @@ async function fetchRank(kind){
   if(SUPA.url){
     const q=kind==='day'?`&date=eq.${d}`:'';
     const r=await withTimeout(fetch(`${SUPA.url}/rest/v1/${TBL[kind]}?select=name,score,device${q}&order=score.desc&limit=300`,
-      {headers:{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key}}),10000);
+      {headers:{...supaHdr()}}),10000);
     rows=await r.json();
   }else{
     const db=await getDb();if(!db)throw new Error('nodb');
@@ -714,7 +715,7 @@ function renderRankArea(){
   const doSubmit=async nm=>{
     box.innerHTML='<div class="msg">기록 올리는 중…</div>';
     try{await submitScore(kind,nm,score);store.set(subKey,score);await showMyRank(box,kind)}
-    catch(e){box.innerHTML='<div class="msg">랭킹 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요</div>'}};
+    catch(e){box.innerHTML='<div class="msg">랭킹 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요</div><div class="msg" style="font-size:11px;opacity:.7;word-break:break-all"></div>';box.lastChild.textContent=String(e&&e.message||e)}};
   if(score<=submitted||score===0)showMyRank(box,kind);
   else if(name)doSubmit(name);
   else{
